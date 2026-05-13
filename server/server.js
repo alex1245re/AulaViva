@@ -293,12 +293,14 @@ io.on('connection', (socket) => {
     });
 
     // ---------- TAREAS ----------
-    socket.on('task:add', (text) => {
+    socket.on('task:add', ({ text, priority } = {}) => {
         const room = getRoom(); if (!room) return;
+        const validPriority = ['High', 'Normal', 'Low'].includes(priority) ? priority : 'Normal';
         const task = {
             id: Date.now().toString(),
-            text,
+            text: (text || '').slice(0, 120),
             done: false,
+            priority: validPriority,
             user: socket.user,
             timestamp: Date.now()
         };
@@ -314,6 +316,25 @@ io.on('connection', (socket) => {
         task.done = !task.done;
         io.to(socket.roomId).emit('task:updated', { ...task });
         fsUpdate(db && db.collection('rooms').doc(socket.roomId).collection('tasks').doc(taskId), { done: task.done });
+    });
+
+    socket.on('task:edit', ({ id, text }) => {
+        const room = getRoom(); if (!room) return;
+        const task = room.tasks.find(t => t.id === id);
+        if (!task) return;
+        task.text = (text || '').slice(0, 120);
+        io.to(socket.roomId).emit('task:updated', { ...task });
+        fsUpdate(db && db.collection('rooms').doc(socket.roomId).collection('tasks').doc(id), { text: task.text });
+    });
+
+    socket.on('task:priority', ({ id, priority }) => {
+        const room = getRoom(); if (!room) return;
+        const task = room.tasks.find(t => t.id === id);
+        if (!task) return;
+        const validPriority = ['High', 'Normal', 'Low'].includes(priority) ? priority : 'Normal';
+        task.priority = validPriority;
+        io.to(socket.roomId).emit('task:updated', { ...task });
+        fsUpdate(db && db.collection('rooms').doc(socket.roomId).collection('tasks').doc(id), { priority: validPriority });
     });
 
     socket.on('task:delete', (taskId) => {
