@@ -168,7 +168,8 @@ io.on('connection', (socket) => {
     // ---------- PIZARRA ----------
     socket.on('board:draw', (stroke) => {
         const room = getRoom(); if (!room) return;
-        room.boardStrokes.push(stroke);
+        // Guardar el userId en el trazo para que el undo sea por usuario
+        room.boardStrokes.push({ ...stroke, userId: socket.id });
         socket.to(socket.roomId).emit('board:draw', stroke);
     });
 
@@ -181,11 +182,18 @@ io.on('connection', (socket) => {
     socket.on('board:undo', () => {
         const room = getRoom(); if (!room) return;
         const strokes = room.boardStrokes;
-        if (strokes.length > 0) {
-            const lastId = strokes[strokes.length - 1].strokeId;
-            room.boardStrokes = strokes.filter(s => s.strokeId !== lastId);
+        // Buscar el último strokeId que pertenece a este usuario
+        let lastStrokeId = null;
+        for (let i = strokes.length - 1; i >= 0; i--) {
+            if (strokes[i].userId === socket.id) {
+                lastStrokeId = strokes[i].strokeId;
+                break;
+            }
         }
-        io.to(socket.roomId).emit('board:sync', room.boardStrokes);
+        if (lastStrokeId !== null) {
+            room.boardStrokes = strokes.filter(s => s.strokeId !== lastStrokeId);
+            io.to(socket.roomId).emit('board:sync', room.boardStrokes);
+        }
     });
 
     // ---------- POMODORO ----------
