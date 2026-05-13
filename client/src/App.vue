@@ -48,9 +48,10 @@
           v-for="tab in tabs"
           :key="tab.id"
           :class="['nav-btn', { active: activeTab === tab.id }]"
-          @click="activeTab = tab.id"
+          @click="switchTab(tab.id)"
         >
           {{ tab.icon }} {{ tab.label }}
+          <span v-if="tab.id === 'chat' && unreadChat > 0" class="chat-badge">{{ unreadChat > 99 ? '99+' : unreadChat }}</span>
         </button>
       </nav>
 
@@ -102,8 +103,14 @@ const activeTab    = ref('chat')
 const roomOwnerId  = ref('')
 const mySocketId   = ref('')
 const kickedMsg    = ref('')
+const unreadChat   = ref(0)
 
 const isAdmin = computed(() => !!mySocketId.value && mySocketId.value === roomOwnerId.value)
+
+const switchTab = (id) => {
+  activeTab.value = id
+  if (id === 'chat') unreadChat.value = 0
+}
 
 const tabs = [
   { id: 'chat',     icon: '💬', label: 'Chat' },
@@ -160,6 +167,7 @@ onMounted(() => {
     roomOwnerId.value = state.ownerId || ''
     mySocketId.value = socket.id
     inRoom.value = true
+    if (Notification.permission === 'default') Notification.requestPermission()
   })
 
   socket.on('users:update', (u) => { users.value = u })
@@ -172,6 +180,24 @@ onMounted(() => {
     setTimeout(() => { kickedMsg.value = '' }, 5000)
   })
 
-  socket.on('chat:message', (msg) => { messages.value.push(msg) })
+  socket.on('chat:message', (msg) => {
+    messages.value.push(msg)
+    if (msg.system) return
+    // Badge de no leídos cuando no estás en el chat
+    if (activeTab.value !== 'chat') unreadChat.value++
+    // Notificación del navegador si la ventana no está enfocada
+    // y el mensaje no es propio
+    if (
+      document.hidden &&
+      msg.user?.id !== mySocketId.value &&
+      Notification.permission === 'granted'
+    ) {
+      new Notification(`${msg.user.avatar} ${msg.user.name}`, {
+        body: msg.text,
+        icon: '/favicon.ico',
+        tag: 'chat-msg'
+      })
+    }
+  })
 })
 </script>

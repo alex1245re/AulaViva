@@ -247,6 +247,20 @@ input[type="range"] { padding: 0; background: transparent; cursor: pointer; }
 .nav-btn:hover { background: var(--bg3); color: var(--text); }
 .nav-btn.active { background: var(--primary); color: #fff; font-weight: 600; }
 
+/* Badge de mensajes no leídos */
+.chat-badge {
+  margin-left: auto;
+  background: #ef4444;
+  color: #fff;
+  font-size: .68rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: .1rem .42rem;
+  line-height: 1.4;
+  min-width: 16px;
+  text-align: center;
+}
+
 /* Pie del sidebar: usuario + cerrar sesión */
 .sidebar-bottom {
   display: flex;
