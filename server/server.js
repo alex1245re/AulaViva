@@ -87,9 +87,12 @@ io.on('connection', (socket) => {
         const isNewRoom = !rooms[roomId];
         const room = getOrCreateRoom(roomId, roomName);
 
-        // Guardar contraseña al crear la sala
+        // Guardar contraseña y asignar propietario al crear la sala
         if (isNewRoom && password) {
             room.password = password;
+        }
+        if (isNewRoom) {
+            room.ownerId = socket.id;
         }
 
         // Si la sala es nueva en memoria, cargar datos persistidos de Firestore
@@ -134,14 +137,52 @@ io.on('connection', (socket) => {
             pomodoroState: room.pomodoroState,
             codeSnippets: room.codeSnippets,
             tasks: room.tasks,
-            room: { id: room.id, name: room.name }
+            room: { id: room.id, name: room.name },
+            ownerId: room.ownerId
         });
 
         // Avisar a todos de la sala
         io.to(roomId).emit('users:update', room.users);
+        io.to(roomId).emit('room:owner', room.ownerId);
         io.to(roomId).emit('chat:message', {
             system: true,
             text: `${socket.user.name} se ha unido a la sala`
+        });
+    });
+
+    // ---------- ADMINISTRACIÓN DE SALA ----------
+    socket.on('room:kick', (targetId) => {
+        const room = getRoom(); if (!room) return;
+        if (room.ownerId !== socket.id) return; // solo el owner
+        const targetSocket = io.sockets.sockets.get(targetId);
+        if (!targetSocket || targetSocket.roomId !== socket.roomId) return;
+        const targetName = targetSocket.user?.name || 'Usuario';
+        targetSocket.emit('kicked', { by: socket.user.name });
+        targetSocket.leave(socket.roomId);
+        room.users = room.users.filter(u => u.id !== targetId);
+        targetSocket.user = null;
+        targetSocket.roomId = null;
+        io.to(socket.roomId).emit('users:update', room.users);
+        io.to(socket.roomId).emit('chat:message', {
+            system: true,
+            text: `${targetName} fue expulsado de la sala por ${socket.user.name}`
+        });
+        fsUpdate(db && db.collection('rooms').doc(socket.roomId), {
+            userCount: room.users.length,
+            updatedAt: Date.now()
+        });
+    });
+
+    socket.on('room:transfer', (targetId) => {
+        const room = getRoom(); if (!room) return;
+        if (room.ownerId !== socket.id) return;
+        const target = room.users.find(u => u.id === targetId);
+        if (!target) return;
+        room.ownerId = targetId;
+        io.to(socket.roomId).emit('room:owner', room.ownerId);
+        io.to(socket.roomId).emit('chat:message', {
+            system: true,
+            text: `${socket.user.name} ha transferido la administración a ${target.name}`
         });
     });
 
@@ -359,6 +400,17 @@ io.on('connection', (socket) => {
         if (!room) return;
 
         room.users = room.users.filter(u => u.id !== socket.id);
+
+        // Si el admin se fue, transferir al siguiente usuario
+        if (room.ownerId === socket.id && room.users.length > 0) {
+            room.ownerId = room.users[0].id;
+            io.to(socket.roomId).emit('room:owner', room.ownerId);
+            io.to(socket.roomId).emit('chat:message', {
+                system: true,
+                text: `${room.users[0].name} es ahora el administrador de la sala`
+            });
+        }
+
         io.to(socket.roomId).emit('users:update', room.users);
         io.to(socket.roomId).emit('chat:message', {
             system: true,

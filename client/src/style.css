@@ -179,6 +179,57 @@ input[type="range"] { padding: 0; background: transparent; cursor: pointer; }
 
 .user-list { list-style: none; display: flex; flex-direction: column; gap: .3rem; max-height: 160px; overflow-y: auto; }
 .user-item { display: flex; align-items: center; gap: .5rem; font-size: .88rem; }
+
+/* Admin badge y acciones */
+.admin-crown { font-size: .8rem; flex-shrink: 0; line-height: 1; }
+.admin-user-actions {
+  margin-left: auto;
+  display: flex;
+  gap: .25rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s;
+  flex-shrink: 0;
+}
+.user-item:hover .admin-user-actions { opacity: 1; pointer-events: auto; }
+.btn-kick-user, .btn-promote-user {
+  background: none;
+  border-radius: 5px;
+  width: 20px;
+  height: 20px;
+  font-size: .75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.btn-kick-user { border: 1px solid #ef4444; color: #f87171; }
+.btn-kick-user:hover { background: rgba(239,68,68,.18); }
+.btn-promote-user { border: 1px solid #f59e0b; color: #fbbf24; }
+.btn-promote-user:hover { background: rgba(245,158,11,.18); }
+
+/* Toast expulsado */
+.kicked-toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #450a0a;
+  border: 1px solid #ef4444;
+  color: #fca5a5;
+  border-radius: 12px;
+  padding: .85rem 1.6rem;
+  font-size: .95rem;
+  font-weight: 600;
+  z-index: 9999;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  white-space: nowrap;
+}
+.kicked-fade-enter-active, .kicked-fade-leave-active { transition: opacity .3s, transform .3s; }
+.kicked-fade-enter-from, .kicked-fade-leave-to { opacity: 0; transform: translateX(-50%) translateY(12px); }
 .user-avatar { font-size: 1.1rem; }
 .user-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .user-name.you { color: var(--primary-light); font-weight: 600; }

@@ -30,9 +30,14 @@
         <ul class="user-list">
           <li v-for="u in users" :key="u.id" class="user-item">
             <span class="user-avatar">{{ u.avatar }}</span>
-            <span class="user-name" :class="{ 'you': u.name === currentUser.name }">
-              {{ u.name }} {{ u.name === currentUser.name ? '(tú)' : '' }}
+            <span v-if="u.id === roomOwnerId" class="admin-crown" title="Administrador">👑</span>
+            <span class="user-name" :class="{ 'you': u.id === mySocketId }">
+              {{ u.name }}{{ u.id === mySocketId ? ' (tú)' : '' }}
             </span>
+            <div v-if="isAdmin && u.id !== mySocketId" class="admin-user-actions">
+              <button class="btn-kick-user" @click="kickUser(u)" title="Expulsar">⊗</button>
+              <button class="btn-promote-user" @click="transferTo(u)" title="Transferir admin">👑</button>
+            </div>
           </li>
         </ul>
       </div>
@@ -67,10 +72,14 @@
       <TasksPanel    v-show="activeTab === 'tasks'" />
     </main>
   </div>
+  <!-- Toast expulsado -->
+  <Transition name="kicked-fade">
+    <div v-if="kickedMsg" class="kicked-toast">🚫 {{ kickedMsg }}</div>
+  </Transition>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { auth } from './firebase.js'
 import socket from './socket.js'
@@ -90,6 +99,11 @@ const roomInfo     = reactive({ id: '', name: '' })
 const users        = ref([])
 const messages     = ref([])
 const activeTab    = ref('chat')
+const roomOwnerId  = ref('')
+const mySocketId   = ref('')
+const kickedMsg    = ref('')
+
+const isAdmin = computed(() => !!mySocketId.value && mySocketId.value === roomOwnerId.value)
 
 const tabs = [
   { id: 'chat',     icon: '💬', label: 'Chat' },
@@ -115,7 +129,12 @@ const leaveRoom = () => {
   users.value = []
   messages.value = []
   activeTab.value = 'chat'
+  roomOwnerId.value = ''
+  mySocketId.value = ''
 }
+
+const kickUser   = (u) => socket.emit('room:kick', u.id)
+const transferTo = (u) => { if (confirm(`¿Dar la administración a ${u.name}?`)) socket.emit('room:transfer', u.id) }
 
 const logout = async () => {
   leaveRoom()
@@ -138,10 +157,20 @@ onMounted(() => {
   socket.on('room:state', (state) => {
     users.value = state.users
     messages.value = state.messages
+    roomOwnerId.value = state.ownerId || ''
+    mySocketId.value = socket.id
     inRoom.value = true
   })
 
   socket.on('users:update', (u) => { users.value = u })
+
+  socket.on('room:owner', (ownerId) => { roomOwnerId.value = ownerId })
+
+  socket.on('kicked', ({ by }) => {
+    leaveRoom()
+    kickedMsg.value = `Has sido expulsado de la sala por ${by}`
+    setTimeout(() => { kickedMsg.value = '' }, 5000)
+  })
 
   socket.on('chat:message', (msg) => { messages.value.push(msg) })
 })
