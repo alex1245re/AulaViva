@@ -178,6 +178,68 @@ input[type="range"] { padding: 0; background: transparent; cursor: pointer; }
 .nav-btn:hover { background: var(--bg3); color: var(--text); }
 .nav-btn.active { background: var(--primary); color: #fff; font-weight: 600; }
 
+/* Pie del sidebar: usuario + cerrar sesión */
+.sidebar-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .6rem .9rem .9rem;
+  border-top: 1px solid var(--border);
+  gap: .5rem;
+}
+.current-user-info {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  overflow: hidden;
+}
+.current-avatar { font-size: 1.1rem; flex-shrink: 0; }
+.current-name { font-size: .82rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btn-logout {
+  background: none;
+  border: 1px solid #475569;
+  color: #94a3b8;
+  border-radius: 7px;
+  padding: .3rem .5rem;
+  font-size: .95rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .15s, color .15s;
+}
+.btn-logout:hover { background: rgba(239,68,68,.12); color: #f87171; border-color: #f87171; }
+
+/* Pantalla de carga inicial de auth */
+.auth-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0f172a;
+}
+.auth-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #334155;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Saludo en lobby cuando hay usuario autenticado */
+.user-greeting {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: .7rem 1rem;
+}
+.greeting-avatar { font-size: 1.8rem; }
+.greeting-name { font-size: .95rem; font-weight: 600; color: #e2e8f0; }
+.greeting-email { font-size: .78rem; color: #64748b; margin-top: .1rem; }
+
 /* ─── MAIN PANEL ───────────────────────────────────────────────── */
 .main-panel { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
 

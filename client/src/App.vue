@@ -1,6 +1,14 @@
 <template>
+  <!-- Cargando estado de auth -->
+  <div v-if="!authReady" class="auth-loading">
+    <div class="auth-loading-spinner"></div>
+  </div>
+
+  <!-- No autenticado -->
+  <AuthScreen v-else-if="!firebaseUser" />
+
   <!-- LOBBY -->
-  <LobbyScreen v-if="!inRoom" @join="joinRoom" />
+  <LobbyScreen v-else-if="!inRoom" @join="joinRoom" :firebaseUser="firebaseUser" />
 
   <!-- SALA DE ESTUDIO -->
   <div v-else class="room-layout">
@@ -40,6 +48,14 @@
           {{ tab.icon }} {{ tab.label }}
         </button>
       </nav>
+
+      <div class="sidebar-bottom">
+        <div class="current-user-info">
+          <span class="current-avatar">{{ currentUser.avatar }}</span>
+          <span class="current-name">{{ currentUser.name }}</span>
+        </div>
+        <button class="btn-logout" @click="logout" title="Cerrar sesión">⎋</button>
+      </div>
     </aside>
 
     <!-- PANEL PRINCIPAL -->
@@ -55,7 +71,10 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { auth } from './firebase.js'
 import socket from './socket.js'
+import AuthScreen from './components/AuthScreen.vue'
 import LobbyScreen from './components/LobbyScreen.vue'
 import ChatPanel from './components/ChatPanel.vue'
 import BoardPanel from './components/BoardPanel.vue'
@@ -63,12 +82,14 @@ import PomodoroPanel from './components/PomodoroPanel.vue'
 import SnippetsPanel from './components/SnippetsPanel.vue'
 import TasksPanel from './components/TasksPanel.vue'
 
-const inRoom = ref(false)
-const currentUser = reactive({ name: '', avatar: '' })
-const roomInfo = reactive({ id: '', name: '' })
-const users = ref([])
-const messages = ref([])
-const activeTab = ref('chat')
+const authReady    = ref(false)
+const firebaseUser = ref(null)
+const inRoom       = ref(false)
+const currentUser  = reactive({ name: '', avatar: '' })
+const roomInfo     = reactive({ id: '', name: '' })
+const users        = ref([])
+const messages     = ref([])
+const activeTab    = ref('chat')
 
 const tabs = [
   { id: 'chat',     icon: '💬', label: 'Chat' },
@@ -96,7 +117,24 @@ const leaveRoom = () => {
   activeTab.value = 'chat'
 }
 
+const logout = async () => {
+  leaveRoom()
+  await signOut(auth)
+}
+
 onMounted(() => {
+  // Escuchar cambios de autenticación
+  onAuthStateChanged(auth, (user) => {
+    firebaseUser.value = user
+    authReady.value = true
+    // Si el usuario cierra sesión externamente, volver al lobby
+    if (!user && inRoom.value) {
+      inRoom.value = false
+      users.value = []
+      messages.value = []
+    }
+  })
+
   socket.on('room:state', (state) => {
     users.value = state.users
     messages.value = state.messages

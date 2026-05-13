@@ -6,9 +6,13 @@
       <p class="subtitle">Estudia en equipo, a distancia</p>
 
       <form @submit.prevent="enter">
-        <div class="field">
-          <label>Tu nombre</label>
-          <input v-model="username" type="text" placeholder="Ej: María García" required autocomplete="off" maxlength="30" />
+        <!-- Usuario autenticado -->
+        <div class="field user-greeting">
+          <span class="greeting-avatar">{{ avatar }}</span>
+          <div>
+            <div class="greeting-name">{{ firebaseUser?.displayName || firebaseUser?.email }}</div>
+            <div class="greeting-email">{{ firebaseUser?.email }}</div>
+          </div>
         </div>
 
         <div class="field">
@@ -27,7 +31,7 @@
           <label>Crear nueva sala</label>
           <div class="row">
             <input v-model="newRoomName" type="text" placeholder="Nombre de la sala" maxlength="40" autocomplete="off" />
-            <button type="button" class="btn-secondary" @click="createRoom" :disabled="!username.trim() || !newRoomName.trim()">
+            <button type="button" class="btn-secondary" @click="createRoom" :disabled="!newRoomName.trim()">
               Crear
             </button>
           </div>
@@ -55,7 +59,7 @@
             <input v-model="joinPassword" type="password" placeholder="Contraseña de la sala" maxlength="40" autocomplete="off" />
           </div>
           <div v-if="joinError" class="join-error">❌ {{ joinError }}</div>
-          <button type="submit" class="btn-primary" :disabled="!username.trim() || !selectedRoom">
+          <button type="submit" class="btn-primary" :disabled="!selectedRoom">
             Unirse a sala
           </button>
         </div>
@@ -70,9 +74,9 @@ import { db } from '../firebase.js'
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore'
 import socket from '../socket.js'
 
+const props = defineProps({ firebaseUser: Object })
 const emit = defineEmits(['join'])
 
-const username = ref('')
 const avatar = ref('🧑‍💻')
 const avatars = ['🧑‍💻', '👩‍💻', '🤓', '🦊', '🐼', '🦁', '🤖', '👻']
 
@@ -140,10 +144,11 @@ const startFirestoreListener = () => {
 
 // ── Acciones ─────────────────────────────────────────────────────────
 const createRoom = () => {
-  if (!username.value.trim() || !newRoomName.value.trim()) return
+  if (!newRoomName.value.trim()) return
+  const name = props.firebaseUser?.displayName || props.firebaseUser?.email || 'Usuario'
   const roomId = 'room_' + Date.now()
   emit('join', {
-    user: { name: username.value.trim(), avatar: avatar.value },
+    user: { name, avatar: avatar.value },
     roomId,
     roomName: newRoomName.value.trim(),
     password: newRoomPassword.value.trim() || undefined
@@ -151,11 +156,12 @@ const createRoom = () => {
 }
 
 const enter = () => {
-  if (!username.value.trim() || !selectedRoom.value) return
+  if (!selectedRoom.value) return
   joinError.value = ''
+  const name = props.firebaseUser?.displayName || props.firebaseUser?.email || 'Usuario'
   const room = activeRooms.value.find(r => r.id === selectedRoom.value)
   emit('join', {
-    user: { name: username.value.trim(), avatar: avatar.value },
+    user: { name, avatar: avatar.value },
     roomId: selectedRoom.value,
     roomName: room?.name || selectedRoom.value,
     password: joinPassword.value.trim() || undefined
