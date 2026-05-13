@@ -96,6 +96,24 @@ input[type="range"] { padding: 0; background: transparent; cursor: pointer; }
 
 .divider { border-top: 1px solid var(--border); margin: 1.2rem 0; }
 
+.lobby-card input[type="text"],
+.lobby-card input[type="password"],
+.lobby-card input[type="email"] {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: .65rem .9rem;
+  color: var(--text);
+  font-size: .9rem;
+  outline: none;
+  transition: border-color .2s;
+}
+.lobby-card input[type="text"]:focus,
+.lobby-card input[type="password"]:focus,
+.lobby-card input[type="email"]:focus { border-color: var(--primary); }
+
 .row { display: flex; gap: .5rem; align-items: center; }
 .row input { flex: 1; }
 
