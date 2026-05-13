@@ -9,10 +9,11 @@
         <!-- Usuario autenticado -->
         <div class="field user-greeting">
           <span class="greeting-avatar">{{ avatar }}</span>
-          <div>
+          <div class="greeting-info">
             <div class="greeting-name">{{ firebaseUser?.displayName || firebaseUser?.email }}</div>
             <div class="greeting-email">{{ firebaseUser?.email }}</div>
           </div>
+          <button type="button" class="btn-logout-lobby" @click="logout" title="Cerrar sesión">⎋</button>
         </div>
 
         <div class="field">
@@ -70,12 +71,15 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { db } from '../firebase.js'
+import { db, auth } from '../firebase.js'
+import { signOut } from 'firebase/auth'
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore'
 import socket from '../socket.js'
 
 const props = defineProps({ firebaseUser: Object })
 const emit = defineEmits(['join'])
+
+const logout = () => signOut(auth)
 
 const avatar = ref('🧑‍💻')
 const avatars = ['🧑‍💻', '👩‍💻', '🤓', '🦊', '🐼', '🦁', '🤖', '👻']

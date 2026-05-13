@@ -237,8 +237,21 @@ input[type="range"] { padding: 0; background: transparent; cursor: pointer; }
   padding: .7rem 1rem;
 }
 .greeting-avatar { font-size: 1.8rem; }
+.greeting-info { flex: 1; min-width: 0; }
 .greeting-name { font-size: .95rem; font-weight: 600; color: #e2e8f0; }
 .greeting-email { font-size: .78rem; color: #64748b; margin-top: .1rem; }
+.btn-logout-lobby {
+  background: none;
+  border: 1px solid #475569;
+  color: #94a3b8;
+  border-radius: 7px;
+  padding: .3rem .5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .15s, color .15s;
+}
+.btn-logout-lobby:hover { background: rgba(239,68,68,.12); color: #f87171; border-color: #f87171; }
 
 /* ─── MAIN PANEL ───────────────────────────────────────────────── */
 .main-panel { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
