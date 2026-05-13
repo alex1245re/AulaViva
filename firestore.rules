@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Salas: el cliente solo puede leer (para el lobby en tiempo real)
+    // Escritura exclusiva del servidor via Admin SDK (bypasea estas reglas)
+    match /rooms/{roomId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Mensajes y snippets: solo el servidor escribe y lee (Admin SDK)
+    // El cliente no accede directamente a estas subcolecciones
+    match /rooms/{roomId}/{sub}/{docId} {
+      allow read, write: if false;
+    }
+  }
+}

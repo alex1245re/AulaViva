@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+*.log
+
+# Credenciales Firebase (¡nunca subir a git!)
+server/serviceAccountKey.json
+serviceAccountKey.json
