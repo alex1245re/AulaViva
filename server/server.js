@@ -2,6 +2,7 @@ const express = require('express');
 const { Server } = require('socket.io');
 const { createServer } = require('node:http');
 const cors = require('cors');
+const path = require('node:path');
 const { db } = require('./firebaseAdmin');
 
 // Helper: guarda en Firestore sin bloquear ni romper si no está disponible
@@ -14,18 +15,14 @@ const fsUpdate = (ref, data)      => db ? ref.set(data, { merge: true }).catch(e
 const app = express();
 const port = process.env.PORT || 3000;
 
-// En producción solo acepta peticiones desde el dominio de Firebase Hosting
-const allowedOrigins = process.env.CLIENT_ORIGIN
-    ? [process.env.CLIENT_ORIGIN]
-    : ['http://localhost:5173', 'http://localhost:4173'];
-
-app.use(cors({ origin: allowedOrigins, methods: ['GET', 'POST'] }));
+app.use(cors({ origin: '*', methods: ['GET', 'POST'] }));
 app.use(express.json());
+app.use(express.static(path.join(__dirname, '../client/dist')));
 
 const server = createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: allowedOrigins,
+        origin: '*',
         methods: ['GET', 'POST']
     }
 });
@@ -444,7 +441,7 @@ function serializePomo(p) {
 }
 
 // Endpoint para listar salas activas
-app.get('/rooms', (req, res) => {
+app.get('/api/rooms', (req, res) => {
     const activeRooms = Object.values(rooms).map(r => ({
         id: r.id,
         name: r.name,
@@ -452,6 +449,11 @@ app.get('/rooms', (req, res) => {
         hasPassword: !!r.password
     }));
     res.json(activeRooms);
+});
+
+// SPA fallback: cualquier ruta no API devuelve index.html
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
 });
 
 // Evitar que el servidor se caiga por excepciones no capturadas
