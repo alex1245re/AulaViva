@@ -54,7 +54,9 @@ function getOrCreateRoom(roomId, roomName) {
             messages: [],
             boardStrokes: [],
             pomodoroState: defaultPomodoroState(),
-            codeSnippets: []
+            codeSnippets: [],
+            tasks: [],
+            password: null
         };
     }
     return rooms[roomId];
@@ -70,24 +72,40 @@ io.on('connection', (socket) => {
     };
 
     // ---------- UNIRSE A SALA ----------
-    socket.on('join', async ({ user, roomId, roomName }) => {
+    socket.on('join', async ({ user, roomId, roomName, password }) => {
+        // Validar contraseña si la sala ya existe y está protegida
+        if (rooms[roomId] && rooms[roomId].password) {
+            if (rooms[roomId].password !== password) {
+                socket.emit('join:error', { message: 'Contraseña incorrecta' });
+                return;
+            }
+        }
+
         socket.user = { ...user, id: socket.id };
         socket.roomId = roomId;
 
         const isNewRoom = !rooms[roomId];
         const room = getOrCreateRoom(roomId, roomName);
 
+        // Guardar contraseña al crear la sala
+        if (isNewRoom && password) {
+            room.password = password;
+        }
+
         // Si la sala es nueva en memoria, cargar datos persistidos de Firestore
         if (isNewRoom && db) {
             try {
-                const [msgsSnap, snipsSnap] = await Promise.all([
+                const [msgsSnap, snipsSnap, tasksSnap] = await Promise.all([
                     db.collection('rooms').doc(roomId)
                       .collection('messages').orderBy('timestamp').limit(100).get(),
                     db.collection('rooms').doc(roomId)
-                      .collection('snippets').orderBy('timestamp', 'desc').limit(20).get()
+                      .collection('snippets').orderBy('timestamp', 'desc').limit(20).get(),
+                    db.collection('rooms').doc(roomId)
+                      .collection('tasks').orderBy('timestamp').get()
                 ]);
                 room.messages    = msgsSnap.docs.map(d => d.data());
                 room.codeSnippets = snipsSnap.docs.map(d => d.data());
+                room.tasks        = tasksSnap.docs.map(d => d.data());
             } catch (e) {
                 console.error('[Firestore] Error cargando sala:', e.message);
             }
@@ -104,6 +122,7 @@ io.on('connection', (socket) => {
             id: roomId,
             name: room.name,
             userCount: room.users.length,
+            hasPassword: !!room.password,
             updatedAt: Date.now()
         }, { merge: true });
 
@@ -114,6 +133,7 @@ io.on('connection', (socket) => {
             boardStrokes: room.boardStrokes,
             pomodoroState: room.pomodoroState,
             codeSnippets: room.codeSnippets,
+            tasks: room.tasks,
             room: { id: room.id, name: room.name }
         });
 
@@ -272,6 +292,37 @@ io.on('connection', (socket) => {
         fsDel(db && db.collection('rooms').doc(socket.roomId).collection('snippets').doc(snippetId));
     });
 
+    // ---------- TAREAS ----------
+    socket.on('task:add', (text) => {
+        const room = getRoom(); if (!room) return;
+        const task = {
+            id: Date.now().toString(),
+            text,
+            done: false,
+            user: socket.user,
+            timestamp: Date.now()
+        };
+        room.tasks.push(task);
+        io.to(socket.roomId).emit('task:new', task);
+        fsSet(db && db.collection('rooms').doc(socket.roomId).collection('tasks').doc(task.id), task);
+    });
+
+    socket.on('task:toggle', (taskId) => {
+        const room = getRoom(); if (!room) return;
+        const task = room.tasks.find(t => t.id === taskId);
+        if (!task) return;
+        task.done = !task.done;
+        io.to(socket.roomId).emit('task:updated', { ...task });
+        fsUpdate(db && db.collection('rooms').doc(socket.roomId).collection('tasks').doc(taskId), { done: task.done });
+    });
+
+    socket.on('task:delete', (taskId) => {
+        const room = getRoom(); if (!room) return;
+        room.tasks = room.tasks.filter(t => t.id !== taskId);
+        io.to(socket.roomId).emit('task:deleted', taskId);
+        fsDel(db && db.collection('rooms').doc(socket.roomId).collection('tasks').doc(taskId));
+    });
+
     // ---------- DESCONEXIÓN ----------
     socket.on('disconnect', () => {
         if (!socket.user || !socket.roomId) return;
@@ -316,7 +367,8 @@ app.get('/rooms', (req, res) => {
     const activeRooms = Object.values(rooms).map(r => ({
         id: r.id,
         name: r.name,
-        userCount: r.users.length
+        userCount: r.users.length,
+        hasPassword: !!r.password
     }));
     res.json(activeRooms);
 });

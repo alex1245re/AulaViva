@@ -118,6 +118,7 @@ input[type="range"] { padding: 0; background: transparent; cursor: pointer; }
 .room-item.active { background: rgba(79,70,229,.25); }
 .room-name { font-weight: 500; }
 .room-count { font-size: .8rem; color: var(--text-muted); }
+.join-error { color: #f87171; font-size: .85rem; margin-top: .4rem; padding: .4rem .6rem; background: rgba(239,68,68,.1); border-radius: 6px; }
 
 /* ─────────────────────────────────────────────────────────────── */
 /*  ROOM LAYOUT                                                    */

@@ -54,7 +54,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import socket from '../socket.js'
 
 const pomo = reactive({
@@ -113,10 +113,27 @@ const applySettings = () => {
   })
 }
 
+const sendNotification = (state) => {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return
+  const msgs = {
+    work:      { title: '⏱ ¡Tiempo de trabajar!', body: `Empieza el bloque de trabajo (${Math.round(state.workDuration / 60)} min)` },
+    break:     { title: '☕ ¡Descanso corto!',     body: `Tómate ${Math.round(state.breakDuration / 60)} min de descanso` },
+    longBreak: { title: '🛋️ ¡Descanso largo!',    body: `Descansa bien durante ${Math.round(state.longBreakDuration / 60)} min` }
+  }
+  const { title, body } = msgs[state.mode] || msgs.work
+  new Notification(title, { body, icon: '/favicon.ico', silent: false })
+}
+
 socket.on('pomodoro:update', applyState)
-socket.on('pomodoro:done', applyState)
+socket.on('pomodoro:done', (state) => { applyState(state); sendNotification(state) })
 socket.on('pomodoro:tick', (timeLeft) => { pomo.timeLeft = timeLeft })
 socket.on('room:state', (state) => { if (state.pomodoroState) applyState(state.pomodoroState) })
+
+onMounted(() => {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission()
+  }
+})
 
 onUnmounted(() => {
   socket.off('pomodoro:update')

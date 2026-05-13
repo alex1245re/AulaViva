@@ -31,6 +31,7 @@
               Crear
             </button>
           </div>
+          <input v-model="newRoomPassword" type="password" placeholder="🔒 Contraseña (opcional)" maxlength="40" autocomplete="off" style="margin-top:0.5rem" />
         </div>
 
         <div class="field">
@@ -44,12 +45,16 @@
               :key="room.id"
               class="room-item"
               :class="{ active: selectedRoom === room.id }"
-              @click="selectedRoom = room.id"
+              @click="selectRoom(room)"
             >
-              <span class="room-name">{{ room.name }}</span>
+              <span class="room-name">{{ room.hasPassword ? '🔒 ' : '' }}{{ room.name }}</span>
               <span class="room-count">{{ room.userCount }} {{ room.userCount === 1 ? 'persona' : 'personas' }}</span>
             </div>
           </div>
+          <div v-if="selectedRoomLocked" class="field" style="margin-top:0.5rem">
+            <input v-model="joinPassword" type="password" placeholder="Contraseña de la sala" maxlength="40" autocomplete="off" />
+          </div>
+          <div v-if="joinError" class="join-error">❌ {{ joinError }}</div>
           <button type="submit" class="btn-primary" :disabled="!username.trim() || !selectedRoom">
             Unirse a sala
           </button>
@@ -60,9 +65,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { db } from '../firebase.js'
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore'
+import socket from '../socket.js'
 
 const emit = defineEmits(['join'])
 
@@ -71,16 +77,33 @@ const avatar = ref('🧑‍💻')
 const avatars = ['🧑‍💻', '👩‍💻', '🤓', '🦊', '🐼', '🦁', '🤖', '👻']
 
 const newRoomName = ref('')
+const newRoomPassword = ref('')
 const selectedRoom = ref(null)
+const joinPassword = ref('')
+const joinError = ref('')
 const activeRooms = ref([])
 const loadingRooms = ref(true)
+
+const selectedRoomLocked = computed(() => {
+  const room = activeRooms.value.find(r => r.id === selectedRoom.value)
+  return room?.hasPassword || false
+})
+
+const selectRoom = (room) => {
+  selectedRoom.value = room.id
+  joinPassword.value = ''
+  joinError.value = ''
+}
 
 // ── Fallback: polling HTTP si Firestore no está configurado ──────────
 let pollingInterval = null
 
+let SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'
+if (SERVER_URL && !SERVER_URL.startsWith('http')) SERVER_URL = 'https://' + SERVER_URL
+
 const fetchRoomsHttp = async () => {
   try {
-    const res = await fetch('http://localhost:3000/rooms')
+    const res = await fetch(`${SERVER_URL}/rooms`)
     activeRooms.value = await res.json()
   } catch {
     activeRooms.value = []
@@ -122,30 +145,39 @@ const createRoom = () => {
   emit('join', {
     user: { name: username.value.trim(), avatar: avatar.value },
     roomId,
-    roomName: newRoomName.value.trim()
+    roomName: newRoomName.value.trim(),
+    password: newRoomPassword.value.trim() || undefined
   })
 }
 
 const enter = () => {
   if (!username.value.trim() || !selectedRoom.value) return
+  joinError.value = ''
   const room = activeRooms.value.find(r => r.id === selectedRoom.value)
   emit('join', {
     user: { name: username.value.trim(), avatar: avatar.value },
     roomId: selectedRoom.value,
-    roomName: room?.name || selectedRoom.value
+    roomName: room?.name || selectedRoom.value,
+    password: joinPassword.value.trim() || undefined
   })
 }
 
 onMounted(() => {
+  // Siempre arranca polling HTTP (funciona aunque Firestore no persista)
+  startPolling()
+  // Además, si Firestore está disponible, el listener sobreescribe con datos en tiempo real
   if (db) {
     startFirestoreListener()
-  } else {
-    startPolling()
   }
+
+  socket.on('join:error', (err) => {
+    joinError.value = err.message
+  })
 })
 
 onUnmounted(() => {
   if (firestoreUnsub) firestoreUnsub()
   clearInterval(pollingInterval)
+  socket.off('join:error')
 })
 </script>

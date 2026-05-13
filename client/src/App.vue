@@ -48,6 +48,7 @@
       <BoardPanel    v-show="activeTab === 'board'"    :isActive="activeTab === 'board'" />
       <PomodoroPanel v-show="activeTab === 'pomodoro'" />
       <SnippetsPanel v-show="activeTab === 'snippets'" :currentUser="currentUser" />
+      <TasksPanel    v-show="activeTab === 'tasks'" />
     </main>
   </div>
 </template>
@@ -60,6 +61,7 @@ import ChatPanel from './components/ChatPanel.vue'
 import BoardPanel from './components/BoardPanel.vue'
 import PomodoroPanel from './components/PomodoroPanel.vue'
 import SnippetsPanel from './components/SnippetsPanel.vue'
+import TasksPanel from './components/TasksPanel.vue'
 
 const inRoom = ref(false)
 const currentUser = reactive({ name: '', avatar: '' })
@@ -72,17 +74,17 @@ const tabs = [
   { id: 'chat',     icon: '💬', label: 'Chat' },
   { id: 'board',    icon: '🖌️', label: 'Pizarra' },
   { id: 'pomodoro', icon: '⏱', label: 'Pomodoro' },
-  { id: 'snippets', icon: '</>',label: 'Código' }
+  { id: 'snippets', icon: '</>',label: 'Código' },
+  { id: 'tasks',    icon: '📋', label: 'Tareas' }
 ]
 
-const joinRoom = ({ user, roomId, roomName }) => {
+const joinRoom = ({ user, roomId, roomName, password }) => {
   currentUser.name = user.name
   currentUser.avatar = user.avatar
   roomInfo.id = roomId
   roomInfo.name = roomName
-
-  socket.emit('join', { user, roomId, roomName })
-  inRoom.value = true
+  socket.emit('join', { user, roomId, roomName, password })
+  // inRoom se activa al recibir room:state (el servidor confirma el acceso)
 }
 
 const leaveRoom = () => {
@@ -98,6 +100,7 @@ onMounted(() => {
   socket.on('room:state', (state) => {
     users.value = state.users
     messages.value = state.messages
+    inRoom.value = true
   })
 
   socket.on('users:update', (u) => { users.value = u })
